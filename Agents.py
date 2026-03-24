@@ -1,19 +1,32 @@
 from typing import TypedDict, Annotated, List
 
 from dotenv import load_dotenv
+from pydantic import BaseModel
 from langgraph.graph import StateGraph, END
 from langchain_mistralai import ChatMistralAI
 from langchain_core.messages import HumanMessage, SystemMessage
 
 class State(TypedDict):
+    
     assignment: str
-    max_score: float
+    max_grade: float
+
     solution: str
+    
     generator_output: str
+    proposed_grade : float
     judge_output: str
-#    confidence_score: float прикрутить SO через Pydantic
+
     retry_count: int
     final_decision: str
+
+class GeneratorResponse(BaseModel):
+    output : str
+    proposed_grade : float
+
+class JudgeResponse(BaseModel):
+    output : str
+    satisfaction : float # retry будет работать через порог по satisfaction
 
 class GeneratorJudgeBuilder():
     
@@ -22,14 +35,14 @@ class GeneratorJudgeBuilder():
         self.workflow = self.build()
         
         self.generator = ChatMistralAI(
-            model="mistral-tiny",
+            model="mistral-medium",
             temperature=0.7
-        )
+        ).with_structured_output(GeneratorResponse)
         
         self.judge = ChatMistralAI(
-            model="mistral-tiny",
+            model="mistral-medium",
             temperature=0.1
-        )
+        ).with_structured_output(JudgeResponse)
 
     def generator_node(self, state: State):
         """Generator Agent"""
@@ -46,7 +59,7 @@ class GeneratorJudgeBuilder():
             Решение студента: 
             {state['solution']}
 
-            Макссимальный балл за задание: {state['max_score']}
+            Макссимальный балл за задание: {state['max_grade']}
 
             Твоя задача написать короткий но точный комментарий
             Не пиши дополнительно никаких комментариев сразу оцени работу студента.
@@ -54,7 +67,8 @@ class GeneratorJudgeBuilder():
         response = self.generator.invoke(prompt)
         
         return {
-            "generator_output": response.content,
+            "generator_output": response.output,
+            "proposed_grade" : response.proposed_grade,
             "retry_count": state["retry_count"] + 1
         }
     
@@ -62,10 +76,8 @@ class GeneratorJudgeBuilder():
     def judge_node(self, state: State):
         """Judge Agent"""
 
-        # Сюда стоит прикрутить SO, чтобы можно было чекать не поставил ли генератор оценку выше допустимой
-        # Еще, заставим судью выдавать скоры, которые будет показывать генератору с просьбой оценить ответ
-        
-        # is_valid = state["confidence_score"] > 0.8 Что-то по типу такого
+        # Добавим постпроцессинг через Pydantic, это должно решить нашу проблему
+        # is_valid = state["satisfaction"] > 0.8 Что-то по типу такого
 
         prompt = f"""
             Ты ассистент, который контролирует качество обратной связи.
@@ -85,7 +97,8 @@ class GeneratorJudgeBuilder():
             Вердикт проверяющего: 
             {state['generator_output']}
 
-            Макссимальный балл за задание: {state['max_score']}
+            Максимальный балл за задание: {state['max_grade']}
+            Балл, который поставил проверяющий: {state['proposed_grade']}
 
             Твоя задача написать короткий но точный комментарий
             Не пиши дополнительно никаких комментариев сразу оцени качество проверки.
@@ -94,10 +107,14 @@ class GeneratorJudgeBuilder():
         response = self.judge.invoke(prompt)
         
         return {
-            "judge_output": response.content
+            "judge_output": response.output,
+            "satisfaction": response.satisfaction
         }
 
     def should_retry(self, state: State):
+        
+        # настроить механизм ретраев
+
         if state["final_decision"] == "Accepted":
             return "end"
         elif state["retry_count"] < 3:
@@ -141,10 +158,9 @@ if __name__ == "__main__":
     initial_state = {
         "assignment": "Сформулировать 3 цели по SMART",
         "solution": "1. Хорошо поспать 2. Составить список дел на день сегодня в 19:00 3. стать богатым",
-        "max_score" : 15,
+        "max_grade" : 15,
         "generator_output": "",
         "verifier_output": "",
-        "confidence_score": 0.0,
         "retry_count": 0,
         "final_decision": ""
     }
