@@ -1,0 +1,21 @@
+<?php
+$string['pluginname'] = 'AI-проверка заданий';
+$string['settings_header'] = 'Настройки AI-проверки';
+$string['settings_endpoint'] = 'Endpoint AI-сервиса';
+$string['settings_endpoint_desc'] = 'Базовый URL внешнего AI-сервиса (без завершающего слеша).';
+$string['settings_token'] = 'API токен';
+$string['settings_token_desc'] = 'Bearer-токен или API-ключ для внешнего AI-сервиса.';
+$string['settings_pollinterval'] = 'Интервал опроса (секунды)';
+$string['settings_pollinterval_desc'] = 'Минимальный интервал между опросами для одной записи очереди.';
+$string['settings_maxretries'] = 'Максимум попыток';
+$string['settings_maxretries_desc'] = 'Сколько неудачных опросов допускается до перевода в ошибку.';
+$string['task_poll_results'] = 'Опрос результатов AI-проверки';
+$string['status_pending'] = 'В очереди AI';
+$string['status_processing'] = 'Обрабатывается';
+$string['status_done'] = 'Готово (AI)';
+$string['status_error'] = 'Ошибка AI';
+$string['col_aistatus'] = 'Статус AI';
+$string['settings_mockmode'] = 'Режим заглушки (mock)';
+$string['settings_mockmode_desc'] = 'Если включено, плагин не вызывает внешний сервис и генерирует захардкоженный результат через небольшую задержку.';
+$string['settings_mockdelay'] = 'Задержка mock (секунды)';
+$string['settings_mockdelay_desc'] = 'Сколько ждать (с момента постановки в очередь) перед генерацией результата.';
