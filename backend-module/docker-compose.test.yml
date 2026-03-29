@@ -1,0 +1,98 @@
+services:
+  database:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: assessor_test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+    networks:
+      - test-net
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+    networks:
+      - test-net
+
+  base:
+    build:
+      context: ..
+      dockerfile: backend-module/Dockerfile
+    image: backend-test:latest
+    entrypoint: ["tail", "-f", "/dev/null"]
+    networks:
+      - test-net
+
+  celery:
+    image: backend-test:latest
+    command: ["uv", "run", "celery", "-A", "backend.src.tasks", "worker", "--loglevel=info", "--concurrency=2"]
+    environment:
+      ENVIRONMENT: dev
+      API_TOKEN: test-token
+      POSTGRES_HOST: database
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: assessor_test
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ""
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY}
+    depends_on:
+      base:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      database:
+        condition: service_healthy
+    networks:
+      - test-net
+
+  backend:
+    image: backend-test:latest
+    command: ["uv", "run", "main.py"]
+    environment:
+      ENVIRONMENT: dev
+      API_TOKEN: test-token
+      UVICORN_HOST: "0.0.0.0"
+      UVICORN_PORT: "8000"
+      POSTGRES_HOST: database
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: assessor_test
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ""
+    ports:
+      - "18000:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/api/v1/healthy || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+    depends_on:
+      base:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      database:
+        condition: service_healthy
+      celery:
+        condition: service_started
+    networks:
+      - test-net
+
+networks:
+  test-net:
+    driver: bridge

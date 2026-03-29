@@ -37,19 +37,21 @@ services:
     volumes:
       - ./.env:/app/.env:ro
       - ./logs:/app/logs/
-    command: ["uv", "run", "celery", "-A", "backend.src.tasks", "worker"]
+    command: ["uv", "run", "celery", "-A", "backend.src.tasks", "worker", "--loglevel=info"]
     depends_on:
       - base
       - redis
     networks:
       - backend
-    
+
   backend:
     image: backend:latest
     volumes:
       - ./.env:/app/.env:ro
       - ./logs:/app/logs/
     command: ["uv", "run", "main.py"]
+    ports:
+      - "127.0.0.1:8000:8000"
     depends_on:
       - base
       - redis
@@ -59,5 +61,5 @@ services:
       - backend
 
 networks:
-  backend: 
+  backend:
     driver: bridge
