@@ -146,7 +146,7 @@ class GeneratorJudgeBuilder():
             "satisfaction": max(0.0, min(response.satisfaction, 1.0)),
         }
 
-    def retry_loop(self, state: State, threshold=0.9):
+    def retry_loop(self, state: State, threshold=0.7):
 
         if state["satisfaction"] >= threshold:
             return "end"

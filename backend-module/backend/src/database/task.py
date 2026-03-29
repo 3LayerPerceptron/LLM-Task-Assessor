@@ -36,7 +36,7 @@ class Task(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     celery_task_id: str = Field(index=True, unique=True)
     celery_task_result: str | None = Field(default=None)
-    owner_id: uuid.UUID = Field(foreign_key="user.id", nullable=False)
+    owner_id: uuid.UUID | None = Field(default=None, foreign_key="user.id", nullable=True)
     status: TaskStatus = Field(
         default=TaskStatus.PENDING,
         sa_column=Column(SqlEnum(TaskStatus)),
