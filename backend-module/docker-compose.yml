@@ -37,6 +37,8 @@ services:
     volumes:
       - ./.env:/app/.env:ro
       - ./logs:/app/logs/
+    environment:
+      PYTHONPATH: /app
     command: ["uv", "run", "celery", "-A", "backend.src.tasks", "worker", "--loglevel=info"]
     depends_on:
       - base

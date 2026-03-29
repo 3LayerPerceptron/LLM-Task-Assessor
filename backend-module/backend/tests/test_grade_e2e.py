@@ -29,19 +29,8 @@ API_TOKEN     = "test-token"
 HEALTH_URL    = f"{BASE_URL}/healthy"
 STARTUP_TIMEOUT = 120   # seconds to wait for backend to become healthy
 POLL_INTERVAL   = 3     # seconds between health-check attempts
-RESULT_TIMEOUT  = 90    # seconds to wait for a grading result
-RESULT_POLL     = 3     # seconds between result poll attempts
-
-
-# ---------------------------------------------------------------------------
-# Skip if no API key
-# ---------------------------------------------------------------------------
-
-if not os.environ.get("MISTRAL_API_KEY"):
-    pytest.skip(
-        "MISTRAL_API_KEY not set — skipping E2E tests",
-        allow_module_level=True,
-    )
+RESULT_TIMEOUT  = 180   # seconds to wait for a grading result
+RESULT_POLL     = 5     # seconds between result poll attempts
 
 
 # ---------------------------------------------------------------------------
@@ -51,7 +40,7 @@ if not os.environ.get("MISTRAL_API_KEY"):
 def _compose(*args: str) -> subprocess.CompletedProcess:
     """Run a docker compose command against the test compose file."""
     cmd = [
-        "docker", "compose",
+        "docker-compose",
         "-f", COMPOSE_FILE,
         "-p", "aigrader-e2e",
         *args,
@@ -89,9 +78,21 @@ def _poll_result(submission_id: int, timeout: int = RESULT_TIMEOUT) -> dict:
         )
         r.raise_for_status()
         data = r.json()
+        print(f"[poll] submission={submission_id} response={data}")
         if data.get("ready"):
             return data
         time.sleep(RESULT_POLL)
+
+    # Dump celery logs to help diagnose failures
+    try:
+        logs = subprocess.run(
+            ["docker-compose", "-f", COMPOSE_FILE, "-p", "aigrader-e2e", "logs", "--tail=50", "celery"],
+            capture_output=True, text=True,
+        )
+        print("\n[celery logs]\n", logs.stdout or logs.stderr)
+    except Exception:
+        pass
+
     raise TimeoutError(
         f"Grading result for submission {submission_id} "
         f"not ready within {timeout}s"
@@ -125,13 +126,15 @@ def docker_stack():
     Build images and start the full docker-compose stack.
     Runs once for the entire E2E test session.
     """
-    mistral_key = os.environ["MISTRAL_API_KEY"]
+    mistral_key = os.environ.get("MISTRAL_API_KEY")
+    if not mistral_key:
+        pytest.skip("MISTRAL_API_KEY not set — skipping E2E tests")
     env = {**os.environ, "MISTRAL_API_KEY": mistral_key}
 
     print("\n[e2e] Building and starting Docker stack...")
     subprocess.run(
         [
-            "docker", "compose",
+            "docker-compose",
             "-f", COMPOSE_FILE,
             "-p", "aigrader-e2e",
             "up", "--build", "-d", "--wait",

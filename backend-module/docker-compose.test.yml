@@ -36,6 +36,7 @@ services:
     image: backend-test:latest
     command: ["uv", "run", "celery", "-A", "backend.src.tasks", "worker", "--loglevel=info", "--concurrency=2"]
     environment:
+      PYTHONPATH: /app
       ENVIRONMENT: dev
       API_TOKEN: test-token
       POSTGRES_HOST: database

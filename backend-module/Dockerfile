@@ -8,7 +8,7 @@ COPY backend-module/pytest.ini      /app/
 COPY backend-module/README.md       /app/
 COPY backend-module/main.py         /app/
 
-RUN uv sync
+RUN uv sync && mkdir -p /app/logs
 
 # Copy application source.
 COPY backend-module/backend /app/backend
